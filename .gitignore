@@ -1,0 +1,49 @@
+# Data
+data/raw/
+
+# Model artifacts
+experiments/*/checkpoints/
+experiments/*/logs/
+*.pth
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Coverage
+.coverage
+htmlcov/
+*.xml
+
+# Docs
+docs/*.md
+
+# Tools
+tools/
+
+# Claude
+TODO.md
+CLAUDE.md
+.claude/
+state.yaml
+
+# Configs
+!configs/base.yaml
+configs/*.yaml
