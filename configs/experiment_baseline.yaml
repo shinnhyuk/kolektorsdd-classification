@@ -1,0 +1,13 @@
+training:
+  checkpoint_dir: experiments/baseline/checkpoints
+  log_dir: experiments/baseline/logs
+  epochs: 50
+
+model:
+  architecture: baseline_cnn
+
+augmentation:
+  train:
+    horizontal_flip_p: 0.5
+    rotate_limit: 10
+    rotate_p: 0.3
