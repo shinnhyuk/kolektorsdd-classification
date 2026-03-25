@@ -1,0 +1,53 @@
+project:
+  name: kolektorsdd-classification
+  seed: 42
+  device: cuda
+
+data:
+  raw_dir: data/raw/KolektorSDD
+  processed_dir: data/processed
+  image_size: [256, 256]
+  channels: 3
+  train_csv: data/processed/train.csv
+  val_csv: data/processed/val.csv
+  test_csv: data/processed/test.csv
+  num_workers: 2
+  pin_memory: true
+
+augmentation:
+  train:
+    horizontal_flip_p: 0.5
+    rotate_limit: 15
+    rotate_p: 0.3
+    normalize_mean: null  # Stage 1 EDA에서 계산 후 state.yaml에 저장
+    normalize_std: null   # Stage 1 EDA에서 계산 후 state.yaml에 저장
+  val:
+    normalize_mean: null  # state.yaml의 dataset.mean_pixel 사용
+    normalize_std: null   # state.yaml의 dataset.std_pixel 사용
+
+training:
+  batch_size: 32
+  epochs: 50
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0001
+  scheduler: cosine_annealing
+  scheduler_T_max: 50
+  early_stopping_patience: 10
+  checkpoint_dir: experiments/baseline/checkpoints
+  log_dir: experiments/baseline/logs
+
+model:
+  architecture: baseline_cnn
+  num_classes: 1
+  dropout_rate: 0.5
+
+loss:
+  type: bce_with_logits
+  pos_weight: null
+
+evaluation:
+  threshold: 0.5
+  metrics: [f1, auc_roc, precision, recall, average_precision]
+  save_curves: true
+  curves_dir: reports/figures
