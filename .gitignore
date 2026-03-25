@@ -45,5 +45,4 @@ CLAUDE.md
 state.yaml
 
 # Configs
-!configs/base.yaml
-configs/*.yaml
+configs/experiment_*.yaml
