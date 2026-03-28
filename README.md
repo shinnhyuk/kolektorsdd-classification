@@ -15,6 +15,8 @@
 3. [프로젝트 구조](#프로젝트-구조-structure)
 4. [설치 및 실행](#설치-및-실행-setup--run)
 5. [결과](#결과-results)
+   - [탐색적 데이터 분석](#탐색적-데이터-분석-exploratory-data-analysis)
+   - [베이스라인 모델](#베이스라인-모델-baseline-cnn)
 6. [개발 로드맵](#개발-로드맵-roadmap)
 7. [라이센스](#라이센스-license)
 
@@ -22,7 +24,15 @@
 
 ## 프로젝트 개요 (Overview)
 
-KolektorSDD 산업용 표면 결함 데이터셋을 활용한 이진 분류 (Binary Classification) 프로젝트입니다. 총 399장의 이미지 중 52장(결함)과 347장(정상)으로 구성된 심한 클래스 불균형 (Class Imbalance) 환경에서, 데이터 중심 개선 (Data-Centric) 과 모델 중심 개선 (Model-Centric) 을 결합하여 결함 탐지 성능을 높이는 것이 핵심 목적입니다.
+KolektorSDD 산업용 표면 결함 데이터셋을 활용한 이진 분류 (Binary Classification) 프로젝트입니다. 총 399장의 이미지 중 52장(결함)과 347장(정상)으로 구성된 클래스 불균형 (Class Imbalance) 환경에서, 데이터 중심 개선 (Data-Centric) 과 모델 중심 개선 (Model-Centric) 을 결합하여 결함 탐지 성능을 높이는 것이 핵심 목적입니다.
+
+단순 분류 성능 지표(F1, AUC)에 더해, 결함 미검출(FN)이 오경보(FP)보다 훨씬 큰 손실을 유발하는 산업 현장의 특성을 반영한 비용 시뮬레이션을 함께 수행합니다. 비용 수치는 시뮬레이션용 가정치이며, 실제 적용 시에는 공정별 실측 비용으로 대체되어야 합니다.
+
+실제 산업 적용에서는 FN/FP의 비용 차이를 반영한 Total Cost를 함께 고려합니다.
+
+**Total Cost = FN × C_FN + FP × C_FP**
+
+F1·AUC 개선을 통해 FN·FP를 줄이는 것이 기본 목표이며, 여기에 더해 비용 구조의 비대칭성(FN >> FP)을 고려한 threshold 최적화를 통해 Total Cost를 최소화하는 것이 최종 목표입니다.
 
 ---
 
@@ -44,16 +54,6 @@ KolektorSDD 산업용 표면 결함 데이터셋을 활용한 이진 분류 (Bin
 - 데이터셋 공식 페이지: https://www.vicos.si/resources/kolektorsdd/
 - 라이센스: **CC BY-NC-SA 4.0**
 
-**Citation (BibTeX):**
-```bibtex
-@article{tabernik2020segmentation,
-  title={Segmentation-based deep-learning approach for surface-defect detection},
-  author={Tabernik, Domen and {\v{S}}ela, Samo and Skvar{\v{c}}, Jure and Sko{\v{c}}aj, Danijel},
-  journal={Journal of Intelligent Manufacturing},
-  volume={31}, number={3}, pages={759--776}, year={2020}
-}
-```
-
 **사용 안내:**
 - 본 프로젝트는 **교육 및 포트폴리오 목적**으로 데이터셋을 사용합니다.
 - 원본 데이터 파일은 저장소에 포함되지 않습니다 (`.gitignore` 처리).
@@ -66,16 +66,21 @@ KolektorSDD 산업용 표면 결함 데이터셋을 활용한 이진 분류 (Bin
 ```
 kolektorsdd-classification/
 ├── configs/
-│   └── base.yaml                    # 공통 설정 (Config)
+│   ├── base.yaml                    # 공통 설정 (Config)
+│   └── experiment_baseline.yaml     # 베이스라인 실험 설정
 ├── data/
 │   ├── raw/                         # 원본 데이터 (gitignore)
 │   └── processed/
 │       ├── train.csv                # 학습 분할 (Split)
 │       ├── val.csv                  # 검증 분할
 │       └── test.csv                 # 테스트 분할
-├── experiments/                     # 실험 결과 (학습 후 생성)
+├── experiments/
+│   └── baseline/
+│       ├── results.json             # 베이스라인 실험 결과
+│       └── figures/                 # 학습 곡선 및 평가 시각화
 ├── notebooks/
-│   └── 01_eda.ipynb                 # 탐색적 데이터 분석 노트북
+│   ├── 01_eda.ipynb                 # 탐색적 데이터 분석 노트북
+│   └── 02_baseline.ipynb            # 베이스라인 모델 노트북
 ├── reports/
 │   └── figures/                     # EDA 시각화 이미지
 ├── src/
@@ -95,7 +100,7 @@ kolektorsdd-classification/
 ### 1. 환경 설정
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/shinnhyuk/kolektorsdd-classification.git
 cd kolektorsdd-classification
 pip install -r requirements.txt
 ```
@@ -158,10 +163,65 @@ data/raw/KolektorSDD/
 
 ---
 
+### 베이스라인 모델 (Baseline CNN)
+
+최소한의 증강 (수평 플립, 리사이즈, 정규화)만 적용한 커스텀 CNN (Convolutional Neural Network) 으로 초기 성능 기준선 (Baseline) 을 수립했습니다. 클래스 불균형 대응을 위해 BCEWithLogitsLoss에 pos_weight를 자동 계산하여 적용했습니다.
+
+**모델 구성:**
+
+| 항목 | 값 |
+|---|---|
+| 아키텍처 (Architecture) | Custom CNN (3-block) |
+| 입력 크기 (Input Size) | 256x256 |
+| 손실 함수 (Loss) | BCEWithLogitsLoss (pos_weight 자동계산) |
+| 옵티마이저 (Optimizer) | Adam (lr=0.001) |
+| 스케줄러 (Scheduler) | CosineAnnealing |
+| 에폭 (Epochs) | 50 (Early Stopping patience=10) |
+
+**평가 결과 (threshold=0.5):**
+
+| 분할 (Split) | F1 | AUC-ROC | Precision | Recall |
+|---|---|---|---|---|
+| val | 0.2727 | 0.5569 | 0.1622 | 0.8571 |
+| test | 0.2632 | 0.5535 | 0.1724 | 0.5556 |
+
+> 높은 재현율 (Recall) 과 낮은 정밀도 (Precision) 가 공존하는 전형적인 불균형 초기 결과입니다. 이후 데이터 파이프라인 및 모델 개선을 통해 F1과 AUC-ROC를 함께 끌어올리는 것이 목표입니다.
+
+**실패 케이스 분석 (test set 기준):**
+
+| 구분 | 건수 | 추정 비용 (가정치) |
+|---|---|---|
+| FN (결함 미검출) | 7건 | 50,000,000원/건 → 350,000,000원 |
+| FP (오경보) | 3건 | 500,000원/건 → 1,500,000원 |
+| **합계** | | **351,500,000원** (FN이 99.6% 차지) |
+
+> FN 비용(50,000,000원/건)은 결함 1건이 품질 검사를 통과하여 출하될 경우 발생할 수 있는 리콜·보상·라인 중단 등의 하류 리스크를 금전적으로 환산한 잠재 비용(potential cost)을 보수적으로 추정한 값입니다. 본 프로젝트에서는 모델 비교 및 threshold 최적화를 위해 FN/FP 비용을 건별 비용으로 단순화하여 Total Cost를 계산합니다.
+
+- **FN 주원인:** 원본 이미지 세로 방향 5배 압축으로 인한 결함 소실 / 학습 결함 데이터 부족(36장) / threshold=0.5 부적절
+- **FP 주원인:** 표면 노이즈·조명 불균일 오인 / 결함 인접 정상 이미지 혼동
+- **개선 방향:** Augmentation 강화 + WeightedSampler → 전이학습 → threshold 최적화
+
+**학습 곡선 및 평가 시각화:**
+
+학습 이력 (Training History):
+
+![학습 이력](experiments/baseline/figures/training_history.png)
+
+평가 곡선 (Evaluation Curves — ROC / PR):
+
+![평가 곡선](experiments/baseline/figures/evaluation_curves.png)
+
+샘플 이미지 (Sample Images):
+
+![샘플 이미지](experiments/baseline/figures/sample_images.png)
+
+---
+
 ## 개발 로드맵 (Roadmap)
 
 - [x] 프로젝트 초기 설정 — 디렉토리 구조, 설정 파일, 의존성 관리
 - [x] 탐색적 데이터 분석 — 클래스 분포 분석, 픽셀 통계 계산, 파트 단위 데이터 분할
+- [x] 베이스라인 모델 — 커스텀 CNN 구현, 초기 성능 기준선 수립 및 실패 케이스 분석 (test F1=0.2632, AUC=0.5535)
 - 이후 단계 진행 예정
 
 ---
