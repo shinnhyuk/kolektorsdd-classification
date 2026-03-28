@@ -1,13 +1,36 @@
 training:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  scheduler_T_max: 50
+  early_stopping_patience: 10
   checkpoint_dir: experiments/baseline/checkpoints
   log_dir: experiments/baseline/logs
-  epochs: 50
 
 model:
   architecture: baseline_cnn
+  dropout_rate: 0.5
+  num_classes: 1
 
+loss:
+  type: bce_with_logits
+  pos_weight: null  # state.yaml의 train split 통계에서 자동 계산 (244/36 ≈ 6.78)
+
+# 증강: HorizontalFlip + Resize + Normalize만 사용
 augmentation:
   train:
     horizontal_flip_p: 0.5
-    rotate_limit: 10
-    rotate_p: 0.3
+    rotate_limit: 0
+    rotate_p: 0.0
+    normalize_mean: null  # state.yaml에서 자동 로드 (resolve_normalization 호출)
+    normalize_std: null
+  val:
+    normalize_mean: null
+    normalize_std: null
+
+evaluation:
+  threshold: 0.5
+  metrics: [f1, auc_roc, precision, recall, average_precision]
+  save_curves: true
+  curves_dir: experiments/baseline/figures
