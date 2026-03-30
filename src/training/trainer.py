@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from src.evaluation.metrics import compute_metrics
+from src.training.losses import FocalLoss
 from src.utils.logger import get_logger
 
 
@@ -74,9 +75,22 @@ class Trainer:
 
         pos_weight = torch.tensor([pos_weight_val], dtype=torch.float32).to(self.device)
 
-        # BCEWithLogitsLoss: sigmoid + BCE를 합친 수치 안정적 손실함수.
-        # pos_weight로 클래스 불균형 보정 — 결함(소수 클래스) 누락 페널티를 높임
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        # 손실 함수 선택: cfg.loss.type이 "focal"이면 FocalLoss, 그 외 BCEWithLogitsLoss
+        loss_type = cfg.loss.get("type", "bce")
+        if loss_type == "focal":
+            # FocalLoss: 어려운 샘플(hard example)에 집중하는 손실함수
+            # alpha로 클래스 불균형 보정, gamma로 easy example 억제 강도 조절
+            focal_alpha = cfg.loss.get("focal_alpha", 0.25)
+            focal_gamma = cfg.loss.get("focal_gamma", 2.0)
+            self.criterion = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
+            self.logger.info(
+                f"손실 함수: FocalLoss (alpha={focal_alpha}, gamma={focal_gamma})"
+            )
+        else:
+            # BCEWithLogitsLoss: sigmoid + BCE를 합친 수치 안정적 손실함수.
+            # pos_weight로 클래스 불균형 보정 — 결함(소수 클래스) 누락 페널티를 높임
+            self.criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            self.logger.info(f"손실 함수: BCEWithLogitsLoss (pos_weight={pos_weight_val:.4f})")
 
         # weight_decay: L2 정규화 — 가중치가 너무 커지는 것을 막아 과적합 방지
         self.optimizer = optim.Adam(
@@ -291,8 +305,11 @@ class Trainer:
             output_path: 저장 경로 (예: experiments/baseline/results.json)
             extra: 추가로 포함할 메타데이터 dict
         """
+        # stage 값: cfg에서 읽기 (없으면 "unknown")
+        stage_value = self.cfg.get("stage", "unknown")
+
         results = {
-            "stage": "2",
+            "stage": str(stage_value),
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "config": OmegaConf.to_container(self.cfg, resolve=True),
             "metrics": {
