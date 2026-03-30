@@ -11,6 +11,12 @@ from omegaconf import DictConfig
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
+from src.data.samplers import build_weighted_sampler
+from src.data.transforms import (
+    get_data_centric_train_transforms,
+    get_data_centric_val_transforms,
+)
+
 
 class KolektorDataset(Dataset):
     """CSV(image_path, label) 기반 KolektorSDD 데이터셋.
@@ -119,27 +125,58 @@ def build_dataloaders(
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
     """cfg에서 train/val/test DataLoader를 생성하여 반환한다.
 
+    Stage 3 Data-Centric 모드 지원:
+        - cfg.augmentation.train.letterbox == True이면 Stage 3 강화 증강 파이프라인 사용
+        - cfg.data.use_weighted_sampler == True이면 WeightedRandomSampler 적용 (shuffle=False)
+
     Args:
         cfg: resolve_normalization() 처리가 완료된 OmegaConf 설정
 
     Returns:
         (train_loader, val_loader, test_loader) 튜플
     """
-    train_transform = get_train_transforms(cfg)
-    val_transform = get_val_transforms(cfg)
+    # letterbox 플래그로 Stage 3 증강 파이프라인 선택
+    use_letterbox: bool = cfg.augmentation.train.get("letterbox", False)
+
+    if use_letterbox:
+        # Stage 3: 레터박스 리사이즈 + CLAHE + 강화 증강
+        train_transform = get_data_centric_train_transforms(cfg)
+        val_transform = get_data_centric_val_transforms(cfg)
+    else:
+        # Stage 2 이하: 기존 간단 증강 파이프라인 유지 (Stage 2 호환성)
+        train_transform = get_train_transforms(cfg)
+        val_transform = get_val_transforms(cfg)
 
     train_ds = KolektorDataset(cfg.data.train_csv, transform=train_transform)
     val_ds = KolektorDataset(cfg.data.val_csv, transform=val_transform)
     test_ds = KolektorDataset(cfg.data.test_csv, transform=val_transform)
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=cfg.training.batch_size,
-        shuffle=True,
-        num_workers=cfg.data.num_workers,
-        pin_memory=cfg.data.pin_memory,
-        drop_last=False,
-    )
+    # WeightedRandomSampler 사용 여부 결정
+    use_weighted_sampler: bool = cfg.data.get("use_weighted_sampler", False)
+
+    if use_weighted_sampler:
+        # WeightedRandomSampler와 shuffle 동시 사용 불가 — shuffle=False
+        sampler = build_weighted_sampler(train_ds)
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=cfg.training.batch_size,
+            shuffle=False,  # sampler 사용 시 shuffle 비활성화 필수
+            sampler=sampler,
+            num_workers=cfg.data.num_workers,
+            pin_memory=cfg.data.pin_memory,
+            drop_last=False,
+        )
+    else:
+        # 기본: 무작위 셔플 (Stage 2 이하 동작 유지)
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=cfg.training.batch_size,
+            shuffle=True,
+            num_workers=cfg.data.num_workers,
+            pin_memory=cfg.data.pin_memory,
+            drop_last=False,
+        )
+
     val_loader = DataLoader(
         val_ds,
         batch_size=cfg.training.batch_size,
