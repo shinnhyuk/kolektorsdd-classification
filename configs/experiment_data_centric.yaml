@@ -1,0 +1,24 @@
+training:
+  checkpoint_dir: experiments/data_centric/checkpoints
+  log_dir: experiments/data_centric/logs
+
+augmentation:
+  train:
+    letterbox: true
+    clahe_p: 0.5
+    clahe_clip_limit: 2.0
+    elastic_transform_p: 0.3
+    horizontal_flip_p: 0.5
+    rotate_limit: 20
+    rotate_p: 0.4
+    brightness_contrast_p: 0.4
+  val:
+    letterbox: true
+
+loss:
+  type: focal
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+data:
+  use_weighted_sampler: true
