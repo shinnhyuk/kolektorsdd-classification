@@ -1,0 +1,130 @@
+{
+  "stage": "unknown",
+  "timestamp": "2026-03-30 17:21:07",
+  "config": {
+    "project": {
+      "name": "kolektorsdd-classification",
+      "seed": 42,
+      "device": "cuda"
+    },
+    "data": {
+      "raw_dir": "data/raw/KolektorSDD",
+      "processed_dir": "data/processed",
+      "image_size": [
+        256,
+        256
+      ],
+      "channels": 3,
+      "train_csv": "data/processed/train.csv",
+      "val_csv": "data/processed/val.csv",
+      "test_csv": "data/processed/test.csv",
+      "num_workers": 2,
+      "pin_memory": true,
+      "use_weighted_sampler": false
+    },
+    "augmentation": {
+      "train": {
+        "horizontal_flip_p": 0.5,
+        "rotate_limit": 15,
+        "rotate_p": 0.3,
+        "normalize_mean": [
+          0.7317,
+          0.7317,
+          0.7317
+        ],
+        "normalize_std": [
+          0.0915,
+          0.0915,
+          0.0915
+        ],
+        "letterbox": false,
+        "clahe_p": 0.5,
+        "clahe_clip_limit": 2.0,
+        "brightness_contrast_p": 0.4
+      },
+      "val": {
+        "normalize_mean": [
+          0.7317,
+          0.7317,
+          0.7317
+        ],
+        "normalize_std": [
+          0.0915,
+          0.0915,
+          0.0915
+        ]
+      }
+    },
+    "training": {
+      "batch_size": 32,
+      "epochs": 50,
+      "optimizer": "adam",
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "scheduler": "cosine_annealing",
+      "scheduler_T_max": 50,
+      "early_stopping_patience": 10,
+      "checkpoint_dir": "experiments/data_centric/checkpoints",
+      "log_dir": "experiments/data_centric/logs"
+    },
+    "model": {
+      "architecture": "baseline_cnn",
+      "num_classes": 1,
+      "dropout_rate": 0.5
+    },
+    "loss": {
+      "type": "bce_with_logits",
+      "pos_weight": null
+    },
+    "evaluation": {
+      "threshold": 0.5,
+      "metrics": [
+        "f1",
+        "auc_roc",
+        "precision",
+        "recall",
+        "average_precision"
+      ],
+      "save_curves": true,
+      "curves_dir": "reports/figures"
+    }
+  },
+  "metrics": {
+    "val": {
+      "f1": 0.2608695652173913,
+      "auc_roc": 0.5539358600583091,
+      "precision": 0.15384615384615385,
+      "recall": 0.8571428571428571,
+      "average_precision": 0.15379525547592776,
+      "confusion_matrix": [
+        [
+          16,
+          33
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "threshold": 0.5
+    },
+    "test": {
+      "f1": 0.2641509433962264,
+      "auc_roc": 0.6008230452674896,
+      "precision": 0.1590909090909091,
+      "recall": 0.7777777777777778,
+      "average_precision": 0.3668046575855313,
+      "confusion_matrix": [
+        [
+          17,
+          37
+        ],
+        [
+          2,
+          7
+        ]
+      ],
+      "threshold": 0.5
+    }
+  }
+}

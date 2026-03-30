@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, Dataset
 from src.data.samplers import build_weighted_sampler
 from src.data.transforms import (
     get_data_centric_train_transforms,
+    get_data_centric_train_transforms_no_letterbox,
     get_data_centric_val_transforms,
 )
 
@@ -135,15 +136,20 @@ def build_dataloaders(
     Returns:
         (train_loader, val_loader, test_loader) 튜플
     """
-    # letterbox 플래그로 Stage 3 증강 파이프라인 선택
+    # 증강 파이프라인 선택
     use_letterbox: bool = cfg.augmentation.train.get("letterbox", False)
+    use_clahe: bool = cfg.augmentation.train.get("clahe_p", 0) > 0
 
     if use_letterbox:
-        # Stage 3: 레터박스 리사이즈 + CLAHE + 강화 증강
+        # 레터박스 + CLAHE 모드
         train_transform = get_data_centric_train_transforms(cfg)
         val_transform = get_data_centric_val_transforms(cfg)
+    elif use_clahe:
+        # 단순 Resize + CLAHE 모드 (레터박스 없음 — BaselineCNN 호환)
+        train_transform = get_data_centric_train_transforms_no_letterbox(cfg)
+        val_transform = get_val_transforms(cfg)
     else:
-        # Stage 2 이하: 기존 간단 증강 파이프라인 유지 (Stage 2 호환성)
+        # Stage 2 이하: 기존 간단 증강 파이프라인 유지
         train_transform = get_train_transforms(cfg)
         val_transform = get_val_transforms(cfg)
 
