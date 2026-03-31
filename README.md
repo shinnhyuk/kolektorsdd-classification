@@ -1,7 +1,7 @@
 # KolektorSDD 표면 결함 분류 (Surface Defect Classification)
 
 > KolektorSDD 산업용 표면 결함 데이터셋을 활용한 머신비전 이진 분류 프로젝트
-> 데이터 파이프라인 개선을 통한 점진적 성능 향상 과정을 기록합니다
+> 데이터 파이프라인 개선과 전이학습 적용을 통한 점진적 성능 향상 과정을 기록했습니다.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)](https://pytorch.org)
@@ -20,6 +20,7 @@
    - [탐색적 데이터 분석](#탐색적-데이터-분석)
    - [베이스라인 모델](#베이스라인-모델)
    - [데이터 중심 개선](#데이터-중심-개선)
+   - [모델 중심 개선](#모델-중심-개선)
 6. [개발 로드맵](#개발-로드맵)
 7. [라이센스](#라이센스)
 
@@ -76,9 +77,10 @@ Total Cost는 아래와 같이 정의했습니다.
 ```
 kolektorsdd-classification/
 ├── configs/
-│   ├── base.yaml                        # 공통 설정 (Config)
+│   ├── base.yaml                        # 공통 설정
 │   ├── experiment_baseline.yaml         # 베이스라인 실험 설정
-│   └── experiment_data_centric.yaml     # 데이터 중심 개선 실험 설정
+│   ├── experiment_data_centric.yaml     # 데이터 중심 개선 실험 설정
+│   └── experiment_model_centric.yaml    # 모델 중심 개선 실험 설정
 ├── data/
 │   ├── raw/                             # 원본 데이터 (gitignore)
 │   └── processed/
@@ -89,18 +91,22 @@ kolektorsdd-classification/
 │   ├── baseline/
 │   │   ├── results.json                 # 베이스라인 실험 결과
 │   │   └── figures/                     # 학습 곡선 및 평가 시각화
-│   └── data_centric/
-│       ├── results.json                 # 데이터 중심 개선 실험 결과
-│       └── figures/                     # 학습 곡선 및 평가 시각화
+│   ├── data_centric/
+│   │   ├── results.json                 # 데이터 중심 개선 실험 결과
+│   │   └── figures/                     # 학습 곡선 및 평가 시각화
+│   └── model_centric/
+│       ├── results.json                 # 모델 중심 개선 실험 결과
+│       └── figures/                     # 학습 곡선, 평가 곡선, Grad-CAM 시각화
 ├── notebooks/
 │   ├── 01_eda.ipynb                     # 탐색적 데이터 분석 노트북
 │   ├── 02_baseline.ipynb                # 베이스라인 모델 노트북
-│   └── 03_data_centric.ipynb            # 데이터 중심 개선 노트북
+│   ├── 03_data_centric.ipynb            # 데이터 중심 개선 노트북
+│   └── 04_model_centric.ipynb           # 모델 중심 개선 노트북
 ├── reports/
 │   └── figures/                         # EDA 시각화 이미지
 ├── src/
 │   ├── data/                            # 데이터셋, 전처리, 증강, 샘플러
-│   ├── models/                          # 모델 정의
+│   ├── models/                          # 모델 정의 (CNN, EfficientNet-B0 전이학습)
 │   ├── training/                        # 학습 루프, 손실 함수
 │   ├── evaluation/                      # 평가 지표
 │   └── utils/                           # 유틸리티
@@ -305,13 +311,74 @@ data/raw/KolektorSDD/
 ---
 
 
+### 모델 중심 개선
+
+데이터 파이프라인(증강, pos_weight)을 그대로 유지하면서, 아키텍처를 Custom CNN에서 EfficientNet-B0 (ImageNet 사전학습) 전이학습 모델로 교체했습니다. 2단계 파인튜닝 (Frozen Epochs 5 → 전체 파인튜닝) 전략을 적용하여 특징 추출 능력을 활용했습니다.
+
+
+> **모델 구성:**
+
+| 항목 | 값 |
+|---|---|
+| 아키텍처 | EfficientNet-B0 (ImageNet 사전학습) |
+| 입력 크기 | 256x256 |
+| 파인튜닝 전략 | 2단계 (헤드 학습 5 에포크 → 전체 파인튜닝) |
+| 정규화 | ImageNet 통계 (mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]) |
+| 손실 함수 | BCEWithLogitsLoss (pos_weight 자동계산) |
+| 옵티마이저 | Adam |
+| 스케줄러 | CosineAnnealing |
+
+
+> **평가 결과 (threshold=0.5):**
+
+| 분할 | F1 | AUC-ROC | AP | Precision | Recall |
+|---|---|---|---|---|---|
+| val | 0.8571 | 0.9942 | 0.9683 | 0.8571 | 0.8571 |
+| test | 0.7000 | 0.9691 | 0.8959 | 0.6364 | 0.7778 |
+
+> **데이터 중심 개선 대비 변화 (test set):**
+
+| 지표 | 데이터 중심 개선 | 모델 중심 개선 | 변화 |
+|---|---|---|---|
+| F1 | 0.2642 | 0.7000 | **+0.4358** |
+| AUC-ROC | 0.6008 | 0.9691 | **+0.3683** |
+| AP | 0.3668 | 0.8959 | **+0.5291** |
+| FN 건수 | 2건 | 2건 | ±0건 |
+| FP 건수 | 37건 | 4건 | **-33건** |
+
+> 전이학습 도입으로 F1이 0.264에서 0.700으로, AUC-ROC가 0.601에서 0.969로 대폭 향상되었습니다. FP가 37건에서 4건으로 크게 감소하면서 정밀도가 개선된 것이 핵심입니다. FN은 동일하게 2건으로 유지되었으며, threshold 최적화를 통해 추가적인 FN/FP 균형 조정 여지가 있습니다.
+
+
+> **학습 곡선, 평가 곡선 및 Grad-CAM 시각화:**
+
+학습 이력:
+
+![학습 이력](experiments/model_centric/figures/training_history.png)
+
+평가 곡선:
+
+![평가 곡선](experiments/model_centric/figures/evaluation_curves.png)
+
+Grad-CAM (결함 위치 시각화):
+
+![Grad-CAM](experiments/model_centric/figures/gradcam.png)
+
+**Grad-CAM 분석 — FN 원인:**
+
+- **FN #1 (contrast 부족):** 결함이 배경 텍스처와 대비가 낮아 육안으로도 모호한 수준. 모델의 관심도가 분산되어 결함 영역에 집중하지 못함.
+- **FN #2 (레터박스 경계 오반응):** 결함이 희미하게 존재하나, 레터박스 패딩 경계의 대비선이 결함보다 강한 신호로 작용하여 탐지 실패.
+- **공통:** TP 케이스 일부(#1)에서도 레터박스 경계 반응이 관찰됨. 복수 케이스에서 반복되는 점으로 보아 단순 노이즈가 아닌, 모델이 패딩 영역의 엉뚱한 특성을 학습했을 가능성이 높음. 레터박스 fill 값을 ImageNet 평균에 가까운 값으로 재조정하는 방향으로 추가 개선 여지가 있음.
+
+---
+
+
 ## 개발 로드맵
 
 - [x] 프로젝트 초기 설정 — 디렉토리 구조, 설정 파일, 의존성 관리
 - [x] 탐색적 데이터 분석 — 클래스 분포 분석, 픽셀 통계 계산, 파트 단위 데이터 분할
 - [x] 베이스라인 모델 — Simple CNN 구현, 초기 성능 기준선 수립 및 실패 케이스 분석 (test F1=0.2632, AUC=0.5535)
 - [x] 데이터 중심 개선 — CLAHE/증강 강화, BCEWithLogitsLoss pos_weight 보정 (test F1=0.2642, AUC=0.6008, AP=0.3668)
-- 이후 단계 진행 예정
+- [x] 모델 중심 개선 — EfficientNet-B0 전이학습, 2단계 파인튜닝 (test F1=0.7000, AUC=0.9691, AP=0.8959)
 
 ---
 
