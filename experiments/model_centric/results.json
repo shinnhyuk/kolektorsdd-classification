@@ -1,0 +1,135 @@
+{
+  "stage": "4",
+  "timestamp": "2026-03-31 18:08:40",
+  "config": {
+    "project": {
+      "name": "kolektorsdd-classification",
+      "seed": 42,
+      "device": "cuda"
+    },
+    "data": {
+      "raw_dir": "data/raw/KolektorSDD",
+      "processed_dir": "data/processed",
+      "image_size": [
+        256,
+        256
+      ],
+      "channels": 3,
+      "train_csv": "data/processed/train.csv",
+      "val_csv": "data/processed/val.csv",
+      "test_csv": "data/processed/test.csv",
+      "num_workers": 2,
+      "pin_memory": true
+    },
+    "augmentation": {
+      "train": {
+        "horizontal_flip_p": 0.5,
+        "rotate_limit": 15,
+        "rotate_p": 0.3,
+        "normalize_mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "normalize_std": [
+          0.229,
+          0.224,
+          0.225
+        ],
+        "letterbox": true,
+        "clahe_p": 0.5,
+        "clahe_clip_limit": 2.0,
+        "brightness_contrast_p": 0.4
+      },
+      "val": {
+        "normalize_mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "normalize_std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "training": {
+      "batch_size": 32,
+      "epochs": 30,
+      "optimizer": "adam",
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "scheduler": "cosine_annealing",
+      "scheduler_T_max": 50,
+      "early_stopping_patience": 10,
+      "checkpoint_dir": "experiments/model_centric/checkpoints",
+      "log_dir": "experiments/model_centric/logs",
+      "phase2_lr": 0.0001,
+      "frozen_epochs": 5
+    },
+    "model": {
+      "architecture": "efficientnet_b0",
+      "num_classes": 1,
+      "dropout_rate": 0.2,
+      "pretrained": true,
+      "pretrained_source": "imagenet",
+      "freeze_backbone": true
+    },
+    "loss": {
+      "type": "bce_with_logits",
+      "pos_weight": null
+    },
+    "evaluation": {
+      "threshold": 0.5,
+      "metrics": [
+        "f1",
+        "auc_roc",
+        "precision",
+        "recall",
+        "average_precision"
+      ],
+      "save_curves": true,
+      "curves_dir": "reports/figures"
+    },
+    "stage": 4
+  },
+  "metrics": {
+    "val": {
+      "f1": 0.9333333333333333,
+      "auc_roc": 0.9970845481049563,
+      "precision": 0.875,
+      "recall": 1.0,
+      "average_precision": 0.9821428571428572,
+      "confusion_matrix": [
+        [
+          48,
+          1
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "threshold": 0.5
+    },
+    "test": {
+      "f1": 0.8235294117647058,
+      "auc_roc": 0.9567901234567902,
+      "precision": 0.875,
+      "recall": 0.7777777777777778,
+      "average_precision": 0.8898148148148148,
+      "confusion_matrix": [
+        [
+          53,
+          1
+        ],
+        [
+          2,
+          7
+        ]
+      ],
+      "threshold": 0.5
+    }
+  }
+}
