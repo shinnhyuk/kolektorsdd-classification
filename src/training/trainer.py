@@ -193,12 +193,32 @@ class Trainer:
             }
         """
         epochs = self.cfg.training.epochs
+        frozen_epochs = self.cfg.training.get("frozen_epochs", 0)
+        phase2_lr = self.cfg.training.get("phase2_lr", self.cfg.training.lr)
         history: list[dict] = []
         best_epoch = 0
 
         self.logger.info(f"학습 시작 — device={self.device}, epochs={epochs}, patience={self.patience}")
+        if frozen_epochs > 0:
+            self.logger.info(f"Phase 1: epoch 1~{frozen_epochs} — classifier only (lr={self.cfg.training.lr})")
 
         for epoch in range(1, epochs + 1):
+            # Phase 전환: frozen_epochs 완료 후 전체 레이어 학습 재개
+            if frozen_epochs > 0 and epoch == frozen_epochs + 1:
+                if hasattr(self.model, "unfreeze_backbone"):
+                    self.model.unfreeze_backbone()
+                    self.logger.info(f"Epoch {epoch}: Phase 2 — full fine-tuning 시작 (lr={phase2_lr})")
+                self.optimizer = optim.Adam(
+                    filter(lambda p: p.requires_grad, self.model.parameters()),
+                    lr=phase2_lr,
+                    weight_decay=self.cfg.training.weight_decay,
+                )
+                self.scheduler = CosineAnnealingLR(
+                    self.optimizer,
+                    T_max=epochs - frozen_epochs,
+                )
+                self.patience_counter = 0
+
             train_loss = self._train_epoch(train_loader)
             val_loss, val_metrics = self._eval_epoch(val_loader)
             self.scheduler.step()
