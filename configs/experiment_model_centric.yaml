@@ -1,0 +1,37 @@
+stage: 4
+
+training:
+  checkpoint_dir: experiments/model_centric/checkpoints
+  log_dir: experiments/model_centric/logs
+  epochs: 30
+  lr: 0.001          # Phase 1: classifier only
+  phase2_lr: 0.0001  # Phase 2: full fine-tuning
+  frozen_epochs: 5
+  weight_decay: 0.0001
+  early_stopping_patience: 10
+  batch_size: 32
+
+model:
+  architecture: efficientnet_b0
+  num_classes: 1
+  dropout_rate: 0.2
+  pretrained: true
+  pretrained_source: imagenet
+  freeze_backbone: true
+
+augmentation:
+  train:
+    letterbox: true
+    clahe_p: 0.5
+    clahe_clip_limit: 2.0
+    horizontal_flip_p: 0.5
+    brightness_contrast_p: 0.4
+    normalize_mean: [0.485, 0.456, 0.406]
+    normalize_std: [0.229, 0.224, 0.225]
+  val:
+    normalize_mean: [0.485, 0.456, 0.406]
+    normalize_std: [0.229, 0.224, 0.225]
+
+loss:
+  type: bce_with_logits
+  pos_weight: null
