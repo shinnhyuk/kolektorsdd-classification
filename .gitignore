@@ -44,6 +44,3 @@ CLAUDE.md
 .claude/
 state.yaml
 
-# Configs
-configs/experiment_threshold.yaml
-
