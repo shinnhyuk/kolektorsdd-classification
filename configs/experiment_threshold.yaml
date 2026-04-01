@@ -1,0 +1,11 @@
+evaluation:
+  threshold_search:
+    method: cost_minimization
+    grid_start: 0.05
+    grid_end: 0.95
+    grid_steps: 181
+  cost_matrix:
+    fn_cost: 10
+    fp_cost: 1
+  model_checkpoint: experiments/model_centric/checkpoints/best.pth
+  config_source: configs/experiment_model_centric.yaml
