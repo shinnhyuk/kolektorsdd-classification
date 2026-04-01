@@ -20,7 +20,7 @@ class ThresholdOptimizer:
         fp_cost: FP(오경보) 1건당 상대 비용 (기본값: 1)
     """
 
-    def __init__(self, fn_cost: float = 100, fp_cost: float = 1) -> None:
+    def __init__(self, fn_cost: float = 10, fp_cost: float = 1) -> None:
         self.fn_cost = fn_cost
         self.fp_cost = fp_cost
 
@@ -211,8 +211,8 @@ class ThresholdOptimizer:
         """cost_minimization 방법으로 최적 threshold 인덱스를 반환한다."""
         costs = np.array([
             self._compute_cost(
-                fn=int(np.sum((y_pred_proba < t) & (y_true == 1))),
-                fp=int(np.sum((y_pred_proba >= t) & (y_true == 0))),
+                fn_count=int(np.sum((y_pred_proba < t) & (y_true == 1))),
+                fp_count=int(np.sum((y_pred_proba >= t) & (y_true == 0))),
             )
             for t in thresholds
         ])

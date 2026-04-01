@@ -1,0 +1,103 @@
+{
+  "stage": "5",
+  "timestamp": "2026-04-01 18:10:44",
+  "cost_assumptions": {
+    "fn_cost": 10,
+    "fp_cost": 1,
+    "fn_cost_krw": 5000000,
+    "fp_cost_krw": 500000,
+    "note": "fn_cost_krw=500만원/건, fp_cost_krw=50만원/건"
+  },
+  "methods": {
+    "cost_minimization": {
+      "threshold": 0.47357648611068726,
+      "f1": 0.8421052631578947,
+      "recall": 0.8888888888888888,
+      "precision": 0.8,
+      "fn": 1,
+      "fp": 2,
+      "tn": 52,
+      "tp": 8,
+      "total_cost_krw_man": 600
+    },
+    "youden": {
+      "threshold": 0.47357648611068726,
+      "f1": 0.8421052631578947,
+      "recall": 0.8888888888888888,
+      "precision": 0.8,
+      "fn": 1,
+      "fp": 2,
+      "tn": 52,
+      "tp": 8,
+      "total_cost_krw_man": 600
+    },
+    "f1_optimal": {
+      "threshold": 0.47357648611068726,
+      "f1": 0.8421052631578947,
+      "recall": 0.8888888888888888,
+      "precision": 0.8,
+      "fn": 1,
+      "fp": 2,
+      "tn": 52,
+      "tp": 8,
+      "total_cost_krw_man": 600
+    }
+  },
+  "baseline_threshold_0.5": {
+    "threshold": 0.5,
+    "f1": 0.8235294117647058,
+    "recall": 0.7777777777777778,
+    "precision": 0.875,
+    "auc_roc": 0.9567901234567902,
+    "fn": 2,
+    "fp": 1,
+    "confusion_matrix": [
+      [
+        53,
+        1
+      ],
+      [
+        2,
+        7
+      ]
+    ],
+    "total_cost_krw_man": 1050
+  },
+  "recommended_threshold": 0.47357648611068726,
+  "cost_reduction_pct": 42.86,
+  "cost_saving_krw_man": 450,
+  "sensitivity_analysis": {
+    "fn_cost_multipliers": [
+      1,
+      5,
+      10,
+      20,
+      50,
+      100
+    ],
+    "optimal_thresholds": [
+      0.47357648611068726,
+      0.47357648611068726,
+      0.47357648611068726,
+      0.33,
+      0.33,
+      0.33
+    ],
+    "f1_at_optimal": [
+      0.8421052631578947,
+      0.8421052631578947,
+      0.8421052631578947,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "recall_at_optimal": [
+      0.8888888888888888,
+      0.8888888888888888,
+      0.8888888888888888,
+      1.0,
+      1.0,
+      1.0
+    ]
+  }
+}
