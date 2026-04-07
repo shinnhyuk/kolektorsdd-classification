@@ -154,6 +154,63 @@ def get_additional_elastic_train_transforms(cfg: DictConfig) -> A.Compose:
     return A.Compose(transforms)
 
 
+def get_additional_vflip_train_transforms(cfg: DictConfig) -> A.Compose:
+    """Stage 6 VerticalFlip 실험용 증강 파이프라인 — 레터박스 모드.
+
+    근거: KolektorSDD 결함은 표면 위치가 수직 방향으로도 무작위 분포.
+    수직 비대칭성이 없으므로 VerticalFlip 추가는 물리적으로 타당함.
+    기대효과: 결함 위치 불변성 강화 → 과적합 감소, 일반화 성능 향상.
+
+    vertical_flip_p는 cfg.augmentation.train.vertical_flip_p에서 읽으며 기본값 0.5.
+
+    Args:
+        cfg: resolve_normalization() 처리가 완료된 OmegaConf 설정
+
+    Returns:
+        A.Compose 변환 객체
+    """
+    aug_cfg = cfg.augmentation.train
+    h, w = cfg.data.image_size
+
+    mean = list(cfg.augmentation.val.normalize_mean)
+    std = list(cfg.augmentation.val.normalize_std)
+
+    clahe_p: float = aug_cfg.get("clahe_p", 0.5)
+    clahe_clip_limit: float = aug_cfg.get("clahe_clip_limit", 2.0)
+    rotate_p: float = aug_cfg.get("rotate_p", 0.0)
+    rotate_limit: int = aug_cfg.get("rotate_limit", 0)
+    brightness_contrast_p: float = aug_cfg.get("brightness_contrast_p", 0.4)
+    hflip_p: float = aug_cfg.get("horizontal_flip_p", 0.5)
+    vflip_p: float = aug_cfg.get("vertical_flip_p", 0.5)
+
+    transforms = [
+        # 레터박스 리사이즈: 평균 픽셀값(≈186)으로 패딩 — 정규화 후 ~0(중립)
+        A.LongestMaxSize(max_size=max(h, w)),
+        A.PadIfNeeded(
+            min_height=h,
+            min_width=w,
+            border_mode=0,
+            fill=186,
+        ),
+        A.CLAHE(clip_limit=clahe_clip_limit, p=clahe_p),
+        A.ShiftScaleRotate(
+            shift_limit=0.05,
+            scale_limit=0.05,
+            rotate_limit=rotate_limit,
+            border_mode=0,
+            p=rotate_p,
+        ),
+        A.RandomBrightnessContrast(p=brightness_contrast_p),
+        A.HorizontalFlip(p=hflip_p),
+        # VerticalFlip: KolektorSDD 결함 수직 위치 무작위성 반영 — 수직 비대칭성 없음
+        A.VerticalFlip(p=vflip_p),
+        A.Normalize(mean=mean, std=std, max_pixel_value=255.0),
+        ToTensorV2(),
+    ]
+
+    return A.Compose(transforms)
+
+
 def get_data_centric_val_transforms(cfg: DictConfig) -> A.Compose:
     """Stage 3 검증/테스트용 변환 — 레터박스 모드.
 
