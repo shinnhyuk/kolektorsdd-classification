@@ -2,8 +2,8 @@
 data/raw/
 
 # Model artifacts
-experiments/*/checkpoints/
-experiments/*/logs/
+experiments/**/checkpoints/
+experiments/**/logs/
 *.pth
 *.pt
 

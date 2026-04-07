@@ -57,8 +57,10 @@ class Trainer:
 
         self.model = model.to(self.device)
 
-        # pos_weight 계산: train split 기준 negative/positive 비율 ≈ 6.78
-        # cfg.loss.pos_weight가 null이면 state.yaml에서 자동 계산
+        # pos_weight 동작 규칙:
+        #   null  → state.yaml 기반 자동 계산 (n_normal/n_defect ≈ 6.78)
+        #   1.0   → 가중치 없음 (WeightedSampler 단독 실험 등 pos_weight를 비활성화할 때 사용)
+        #   기타 값 → 해당 값을 그대로 사용
         pos_weight_val = cfg.loss.get("pos_weight", None)
         if pos_weight_val is None:
             # state.yaml의 train split 통계에서 자동 계산
@@ -72,6 +74,8 @@ class Trainer:
             except Exception:
                 pos_weight_val = 6.78  # 기본값 (244/36)
                 self.logger.warning(f"state.yaml 로드 실패 — 기본 pos_weight {pos_weight_val} 사용")
+        else:
+            self.logger.info(f"pos_weight 명시값 사용: {pos_weight_val}")
 
         pos_weight = torch.tensor([pos_weight_val], dtype=torch.float32).to(self.device)
 
