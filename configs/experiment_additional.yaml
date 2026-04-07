@@ -4,7 +4,7 @@ experiment_name: additional  # 노트북에서 실험명 오버라이드
 model:
   architecture: efficientnet_b0
   num_classes: 1
-  dropout_rate: 0.2
+  dropout_rate: 0.2  # 탐색 범위: 0.3, 0.5
   pretrained: true
   pretrained_source: imagenet
   freeze_backbone: true
@@ -13,12 +13,20 @@ training:
   checkpoint_dir: experiments/additional/checkpoints
   log_dir: experiments/additional/logs
   epochs: 30
-  lr: 0.001          # Phase 1: classifier only
-  phase2_lr: 0.0001  # Phase 2: full fine-tuning
-  frozen_epochs: 5
-  weight_decay: 0.0001
+  lr: 0.001          # Phase 1: classifier only | 탐색 범위: 5e-4, 1e-4
+  phase2_lr: 0.0001  # Phase 2: full fine-tuning | lr 변경 시 1/10 비율 유지
+  frozen_epochs: 5   # 탐색 범위: 3, 10
+  weight_decay: 0.0001  # 탐색 범위: 1e-3, 0
   early_stopping_patience: 10
-  batch_size: 32
+  batch_size: 32     # 탐색 범위: 16
+
+# 노트북 오버라이드 예시 (One-at-a-time: 하나씩 변경, 나머지는 Stage 4 기준값 유지):
+# OmegaConf.update(cfg, "training.lr", 5e-4)
+# OmegaConf.update(cfg, "training.phase2_lr", 5e-5)  # lr의 1/10
+# OmegaConf.update(cfg, "training.frozen_epochs", 3)
+# OmegaConf.update(cfg, "training.weight_decay", 1e-3)
+# OmegaConf.update(cfg, "training.batch_size", 16)
+# OmegaConf.update(cfg, "model.dropout_rate", 0.3)
 
 augmentation:
   train:
