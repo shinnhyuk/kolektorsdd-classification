@@ -12,13 +12,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
 from src.data.samplers import build_weighted_sampler
-from src.data.transforms import (
-    get_additional_elastic_train_transforms,
-    get_additional_vflip_train_transforms,
-    get_data_centric_train_transforms,
-    get_data_centric_train_transforms_no_letterbox,
-    get_data_centric_val_transforms,
-)
+from src.data.transforms import get_data_centric_val_transforms, get_train_transforms
 
 
 class KolektorDataset(Dataset):
@@ -70,33 +64,6 @@ class KolektorDataset(Dataset):
         return self.df["label"].tolist()
 
 
-def get_train_transforms(cfg: DictConfig) -> A.Compose:
-    """학습용 albumentations 변환 파이프라인을 반환한다.
-
-    HorizontalFlip + Resize + Normalize만 사용.
-
-    Args:
-        cfg: merge된 OmegaConf 설정 (augmentation.train.* 키 사용)
-
-    Returns:
-        A.Compose 변환 객체
-    """
-    aug_cfg = cfg.augmentation.train
-    h, w = cfg.data.image_size
-
-    mean = list(aug_cfg.normalize_mean)
-    std = list(aug_cfg.normalize_std)
-
-    transforms = [
-        A.Resize(height=h, width=w),
-        A.HorizontalFlip(p=aug_cfg.horizontal_flip_p),
-        A.Normalize(mean=mean, std=std, max_pixel_value=255.0),
-        ToTensorV2(),
-    ]
-
-    return A.Compose(transforms)
-
-
 def get_val_transforms(cfg: DictConfig) -> A.Compose:
     """검증/테스트용 albumentations 변환 파이프라인을 반환한다.
 
@@ -128,11 +95,10 @@ def build_dataloaders(
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
     """cfg에서 train/val/test DataLoader를 생성하여 반환한다.
 
-    Stage 3+ Data-Centric 모드 지원:
-        - cfg.augmentation.train.letterbox == True이고 elastic_p > 0이면 Stage 6 ElasticTransform 파이프라인 사용
-        - cfg.augmentation.train.letterbox == True이고 vertical_flip_p > 0이면 Stage 6 VerticalFlip 파이프라인 사용
-        - cfg.augmentation.train.letterbox == True이면 Stage 3 강화 증강 파이프라인 사용
-        - cfg.data.use_weighted_sampler == True이면 WeightedRandomSampler 적용 (shuffle=False)
+    증강 파이프라인은 get_train_transforms(cfg) 단일 호출로 결정된다.
+    letterbox, clahe_p, elastic_p, vertical_flip_p 등 모든 분기는
+    transforms.py 내부에서 cfg 값으로 처리된다.
+    val/test는 letterbox가 true이면 레터박스 변환, 아니면 단순 Resize+Normalize 적용.
 
     Args:
         cfg: resolve_normalization() 처리가 완료된 OmegaConf 설정
@@ -140,31 +106,12 @@ def build_dataloaders(
     Returns:
         (train_loader, val_loader, test_loader) 튜플
     """
-    # 증강 파이프라인 선택
-    use_letterbox: bool = cfg.augmentation.train.get("letterbox", False)
-    use_clahe: bool = cfg.augmentation.train.get("clahe_p", 0) > 0
-    use_elastic: bool = cfg.augmentation.train.get("elastic_p", 0) > 0
-    use_vflip: bool = cfg.augmentation.train.get("vertical_flip_p", 0) > 0
+    train_transform = get_train_transforms(cfg)
 
-    if use_letterbox and use_elastic:
-        # Stage 6 ElasticTransform 실험: 레터박스 + CLAHE + ElasticTransform 모드
-        train_transform = get_additional_elastic_train_transforms(cfg)
+    use_letterbox: bool = cfg.augmentation.train.get("letterbox", False)
+    if use_letterbox:
         val_transform = get_data_centric_val_transforms(cfg)
-    elif use_letterbox and use_vflip:
-        # Stage 6 VerticalFlip 실험: 레터박스 + CLAHE + HorizontalFlip + VerticalFlip 모드
-        train_transform = get_additional_vflip_train_transforms(cfg)
-        val_transform = get_data_centric_val_transforms(cfg)
-    elif use_letterbox:
-        # 레터박스 + CLAHE 모드
-        train_transform = get_data_centric_train_transforms(cfg)
-        val_transform = get_data_centric_val_transforms(cfg)
-    elif use_clahe:
-        # 단순 Resize + CLAHE 모드 (레터박스 없음 — BaselineCNN 호환)
-        train_transform = get_data_centric_train_transforms_no_letterbox(cfg)
-        val_transform = get_val_transforms(cfg)
     else:
-        # Stage 2 이하: 기존 간단 증강 파이프라인 유지
-        train_transform = get_train_transforms(cfg)
         val_transform = get_val_transforms(cfg)
 
     train_ds = KolektorDataset(cfg.data.train_csv, transform=train_transform)
