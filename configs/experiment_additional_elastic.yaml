@@ -1,0 +1,43 @@
+stage: 6
+experiment_name: additional_elastic
+
+training:
+  checkpoint_dir: experiments/additional/elastic/checkpoints
+  log_dir: experiments/additional/elastic/logs
+  epochs: 30
+  lr: 0.001          # Phase 1: classifier only
+  phase2_lr: 0.0001  # Phase 2: full fine-tuning
+  frozen_epochs: 5
+  weight_decay: 0.0001
+  early_stopping_patience: 10
+  batch_size: 32
+
+model:
+  architecture: efficientnet_b0
+  num_classes: 1
+  dropout_rate: 0.2
+  pretrained: true
+  pretrained_source: imagenet
+  freeze_backbone: true
+
+augmentation:
+  train:
+    letterbox: true
+    clahe_p: 0.5
+    clahe_clip_limit: 2.0
+    # ElasticTransform: Stage 3 BaselineCNN에서는 효과 없었으나, EfficientNet-B0은
+    # ImageNet 사전학습으로 풍부한 특징 표현을 보유하여 과소적합 위험이 낮음.
+    # 결함 형태 미세 변형이 정규화 효과로 작용할 것으로 기대.
+    # alpha=1, sigma=50은 transforms.py에서 고정 — 식별 가능한 수준의 약한 변형.
+    elastic_p: 0.15
+    horizontal_flip_p: 0.5
+    brightness_contrast_p: 0.4
+    normalize_mean: [0.485, 0.456, 0.406]
+    normalize_std: [0.229, 0.224, 0.225]
+  val:
+    normalize_mean: [0.485, 0.456, 0.406]
+    normalize_std: [0.229, 0.224, 0.225]
+
+loss:
+  type: bce_with_logits
+  pos_weight: null
