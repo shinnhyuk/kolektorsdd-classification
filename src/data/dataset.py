@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, Dataset
 from src.data.samplers import build_weighted_sampler
 from src.data.transforms import (
     get_additional_elastic_train_transforms,
+    get_additional_vflip_train_transforms,
     get_data_centric_train_transforms,
     get_data_centric_train_transforms_no_letterbox,
     get_data_centric_val_transforms,
@@ -129,6 +130,7 @@ def build_dataloaders(
 
     Stage 3+ Data-Centric 모드 지원:
         - cfg.augmentation.train.letterbox == True이고 elastic_p > 0이면 Stage 6 ElasticTransform 파이프라인 사용
+        - cfg.augmentation.train.letterbox == True이고 vertical_flip_p > 0이면 Stage 6 VerticalFlip 파이프라인 사용
         - cfg.augmentation.train.letterbox == True이면 Stage 3 강화 증강 파이프라인 사용
         - cfg.data.use_weighted_sampler == True이면 WeightedRandomSampler 적용 (shuffle=False)
 
@@ -142,10 +144,15 @@ def build_dataloaders(
     use_letterbox: bool = cfg.augmentation.train.get("letterbox", False)
     use_clahe: bool = cfg.augmentation.train.get("clahe_p", 0) > 0
     use_elastic: bool = cfg.augmentation.train.get("elastic_p", 0) > 0
+    use_vflip: bool = cfg.augmentation.train.get("vertical_flip_p", 0) > 0
 
     if use_letterbox and use_elastic:
         # Stage 6 ElasticTransform 실험: 레터박스 + CLAHE + ElasticTransform 모드
         train_transform = get_additional_elastic_train_transforms(cfg)
+        val_transform = get_data_centric_val_transforms(cfg)
+    elif use_letterbox and use_vflip:
+        # Stage 6 VerticalFlip 실험: 레터박스 + CLAHE + HorizontalFlip + VerticalFlip 모드
+        train_transform = get_additional_vflip_train_transforms(cfg)
         val_transform = get_data_centric_val_transforms(cfg)
     elif use_letterbox:
         # 레터박스 + CLAHE 모드
