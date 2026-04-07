@@ -1,7 +1,7 @@
 # KolektorSDD 표면 결함 분류 (Surface Defect Classification)
 
 > KolektorSDD 산업용 표면 결함 데이터셋을 활용한 머신비전 이진 분류 프로젝트
-> 데이터 파이프라인 개선, 전이학습, threshold 최적화를 통한 점진적 성능 향상 과정 기록
+> 데이터 파이프라인 개선, 전이학습, threshold 최적화, 추가 실험을 통한 점진적 성능 향상 과정 기록
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)](https://pytorch.org)
@@ -21,7 +21,8 @@
    - [베이스라인 모델](#베이스라인-모델)
    - [데이터 중심 개선](#데이터-중심-개선)
    - [모델 중심 개선](#모델-중심-개선)
-   - [Threshold 최적화 및 PoC](#threshold-최적화-및-poc)
+   - [Threshold 최적화](#threshold-최적화)
+   - [추가 개선 실험](#추가-개선-실험)
 6. [개발 로드맵](#개발-로드맵)
 7. [라이센스](#라이센스)
 
@@ -30,7 +31,7 @@
 
 ## 프로젝트 개요
 
-KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 머신비전 프로젝트. 52장(결함) / 347장(정상)의 클래스 불균형 환경에서 데이터 중심 개선 → 모델 중심 개선을 통해 결함 탐지 성능을 점진적으로 향상시킴.
+KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 머신비전 프로젝트. 52장(결함) / 347장(정상)의 클래스 불균형 환경에서 데이터 중심 개선 → 모델 중심 개선 → 추가 실험을 통해 결함 탐지 성능을 점진적으로 향상시킴.
 
 분류 성능 지표(F1, AUC)와 함께 비용 기반 평가를 병행. 미탐(FN)은 결함품 출하 시 리콜·보상·라인 중단 등 하류 리스크를, 오탐(FP)은 정상품 재검사·폐기 비용을 의미하며, FN이 FP보다 10배 높은 비용을 유발한다고 가정(FN=500만원/건, FP=50만원/건). 비용 수치는 실제값이 아닌 단순화한 가정.
 
@@ -96,15 +97,19 @@ kolektorsdd-classification/
 │   ├── model_centric/
 │   │   ├── results.json                 # 모델 중심 개선 실험 결과
 │   │   └── figures/                     # 학습 곡선, 평가 곡선, Grad-CAM 시각화
-│   └── threshold/
-│       ├── results.json                 # Threshold 최적화 및 PoC, 비용 분석 결과
-│       └── figures/                     # threshold 최적화 및 PoC, 비용 분석 시각화
+│   ├── threshold/
+│   │   ├── results.json                 # Threshold 최적화 실험 결과
+│   │   └── figures/                     # Threshold 최적화 시각화
+│   └── additional/
+│       ├── results.json                 # 추가 개선 실험 결과 (14종)
+│       └── figures/                     # 실험별 F1 비교 시각화
 ├── notebooks/
 │   ├── 01_eda.ipynb                     # 탐색적 데이터 분석 노트북
 │   ├── 02_baseline.ipynb                # 베이스라인 모델 노트북
 │   ├── 03_data_centric.ipynb            # 데이터 중심 개선 노트북
 │   ├── 04_model_centric.ipynb           # 모델 중심 개선 노트북
-│   └── 05_threshold_analysis.ipynb      # Threshold 최적화 및 PoC, 비용 분석 노트북
+│   ├── 05_threshold_analysis.ipynb      # Threshold 최적화 노트북
+│   └── 06_additional.ipynb              # 추가 개선 실험 노트북
 ├── src/
 │   ├── data/                            # 데이터셋, 전처리, 증강, 샘플러
 │   ├── models/                          # 모델 정의 (CNN, EfficientNet-B0 전이학습)
@@ -343,7 +348,7 @@ raw data의 폴더 파트 단위로 stratified split 수행. 동일 파트 이�
 ---
 
 
-### Threshold 최적화 및 PoC
+### Threshold 최적화
 
 EfficientNet-B0 기반 모델에 대해 FN/FP 비용 비대칭성을 반영한 threshold 최적화 수행, 전체 개선 과정의 PoC 분석 완료.
 
@@ -368,7 +373,7 @@ FN/FP 비용은 산업 도메인 지식 없이 정확히 산정하기 어려움.
 
 ![민감도 분석](experiments/threshold/figures/sensitivity_analysis.png)
 
-fn_cost 배율 1×~100× 구간 스윕 결과, **1×~10× 구간(현재 가정 포함)에서는 threshold 0.4736 유지**. 단, **fn_cost 20× 이상(FN이 FP보다 200배 이상 비쌀 경우)에서는 threshold 0.33으로 이동**하여 Recall=1.0(FN=0) 우선 방향으로 변화. 비용 가정이 현재(10:1)보다 극단적으로 높아지지 않는 한 권장 threshold 유효.
+fn_cost 배율 1× - 100× 구간 스윕 결과, **1×~10× 구간(현재 가정 포함)에서는 threshold 0.4736 유지**. 단, **fn_cost 20× 이상(FN이 FP보다 200배 이상 비쌀 경우)에서는 threshold 0.33으로 이동**하여 Recall=1.0(FN=0) 우선 방향으로 변화. 비용 가정이 현재(10:1)보다 극단적으로 높아지지 않는 한 권장 threshold 유효.
 
 
 #### PoC 비용 분석 (FN=500만원/건, FP=50만원/건 가정)
@@ -384,17 +389,68 @@ fn_cost 배율 1×~100× 구간 스윕 결과, **1×~10× 구간(현재 가정 �
 
 ![단계별 비용 비교](experiments/threshold/figures/cost_comparison.png)
 
+### 추가 개선 실험
+
+EfficientNet-B0 + 증강 파이프라인을 기반으로 TTA, 추가 증강 기법, WeightedSampler, 하이퍼파라미터 탐색 등 총 14종 실험을 수행하여 추가 개선 여지를 탐색.
+
+#### 비교 기준 (EfficientNet-B0 + 증강, threshold=0.5)
+
+| 분할 | F1 | AUC-ROC | Precision | Recall |
+|---|---|---|---|---|
+| val | 0.9333 | 0.9971 | 0.8750 | 1.0000 |
+| test | 0.8235 | 0.9568 | 0.8750 | 0.7778 |
+
+#### 실험 결과 요약
+
+![실험별 F1 비교](experiments/additional/figures/comparison_f1.png)
+
+| 실험 | 내용 | 비고 |
+|---|---|---|
+| TTA | 수평 플립 앙상블 평균 | 역효과 |
+| ElasticTransform (p=0.15) | 탄성 변형 증강 추가 | test 개선, val 소폭 하락 |
+| VerticalFlip (p=0.5) | 수직 플립 증강 추가 | 역효과 |
+| WeightedSampler (단독) | pos_weight 제거 + 배치 균등화 | test 개선, val 소폭 하락 |
+| lr=5e-4 | 학습률 조정 | test 저하 |
+| lr=1e-4 | 학습률 축소 | 수렴 실패 |
+| frozen_epochs=3 | 헤드 학습 기간 단축 | test 저하 |
+| frozen_epochs=10 | 헤드 학습 기간 연장 | test 저하 |
+| weight_decay=1e-3 | 정규화 강화 | test 저하 |
+| weight_decay=0 | 정규화 제거 | test 저하 |
+| batch_size=16 | 배치 크기 축소 | 기준과 동일 |
+| **dropout=0.3** | **드롭아웃 비율 조정** | **val·test 모두 개선 ← Best** |
+| dropout=0.5 | 드롭아웃 비율 상향 | test 저하 |
+
+#### 주요 발견
+
+- **dropout=0.3** 이 val·test 양쪽에서 기준 대비 모두 개선된 유일한 실험. val F1=1.0, test F1=0.8889(+0.0654), test Recall=0.8889(+0.1111).
+- **TTA, VerticalFlip**은 val에서 유지 또는 개선되더라도 test에서 역효과. 수직 방향 증강은 결함 패턴에 비유효한 도입으로 추정.
+
+  *TTA n_aug(3/5/7) 비교 — n 값과 무관하게 기준 대비 일관된 성능 저하 확인*
+  ![TTA n_aug 비교](experiments/additional/figures/tta_naug_comparison.png)
+- **lr=1e-4**는 학습 자체가 수렴하지 못해 탈락. 현재 lr=1e-3(기본값)가 이 데이터셋에 적합한 범위.
+- **ElasticTransform(p=0.15)·WeightedSampler 단독**은 test 기준 긍정적이나 val F1이 기준보다 소폭 낮아 dropout=0.3에는 미치지 못함.
+
+#### 최종 모델 성능 (dropout=0.3, threshold=0.5)
+
+| 분할 | F1 | AUC-ROC | Precision | Recall | FN | FP |
+|---|---|---|---|---|---|---|
+| val | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0 | 0 |
+| test | 0.8889 | 0.9938 | 0.8889 | 0.8889 | 1 | 1 |
+
+비교 기준 대비: test F1 +0.0654, test Recall +0.1111, FN 2건→1건(-50%), FP 1건→1건(동일).
+
 ---
 
 
 ## 개발 로드맵
 
-- [x] 프로젝트 초기 설정 — 디렉토리 구조, 설정 파일, 의존성 관리
-- [x] 탐색적 데이터 분석 — 클래스 분포 분석, 픽셀 통계 계산, 파트 단위 데이터 분할
-- [x] 베이스라인 모델 — Simple CNN 구현, 초기 성능 기준선 수립 및 실패 케이스 분석 (test F1=0.2632, AUC=0.5535)
-- [x] 데이터 중심 개선 — CLAHE/증강 강화, BCEWithLogitsLoss pos_weight 보정 (test F1=0.2642, AUC=0.6008, AP=0.3668)
-- [x] 모델 중심 개선 — EfficientNet-B0 전이학습, 2단계 파인튜닝 (test F1=0.8235, AUC=0.9568, AP=0.8898)
-- [x] Threshold 최적화 및 PoC 비용 분석 — 3가지 방법 수렴 (thr=0.4736), test F1=0.8421, 베이스라인 대비 총 비용 -81%
+- [x] 프로젝트 초기 설정 : 디렉토리 구조, 설정 파일, 의존성 관리
+- [x] 탐색적 데이터 분석 : 클래스 분포 분석, 픽셀 통계 계산, 파트 단위 데이터 분할
+- [x] 베이스라인 모델 : Simple CNN 구현, 초기 성능 기준선 수립 및 실패 케이스 분석 (test F1=0.2632, AUC=0.5535)
+- [x] 데이터 중심 개선 : CLAHE/증강 강화, BCEWithLogitsLoss pos_weight 보정 (test F1=0.2642, AUC=0.6008, AP=0.3668)
+- [x] 모델 중심 개선 : EfficientNet-B0 전이학습, 2단계 파인튜닝 (test F1=0.8235, AUC=0.9568, AP=0.8898)
+- [x] Threshold 최적화 : 3가지 방법 수렴 (thr=0.4736), test F1=0.8421, 베이스라인 대비 총 비용 -81%
+- [x] 추가 개선 실험 : TTA·VerticalFlip·ElasticTransform·WeightedSampler·하이퍼파라미터 탐색 14종 수행, dropout=0.3 최적 (test F1=0.8889, AUC=0.9938)
 
 ---
 
