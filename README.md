@@ -1,7 +1,7 @@
 # KolektorSDD 표면 결함 분류 (Surface Defect Classification)
 
 > KolektorSDD 산업용 표면 결함 데이터셋을 활용한 머신비전 이진 분류 프로젝트
-> 데이터 파이프라인 개선, 전이학습, threshold 최적화, 추가 실험을 통한 점진적 성능 향상 과정 기록
+> 데이터 파이프라인 개선, 전이학습, threshold 최적화, 추가 실험, PoC 종합 분석까지 수행
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)](https://pytorch.org)
@@ -23,6 +23,7 @@
    - [모델 중심 개선](#모델-중심-개선)
    - [Threshold 최적화](#threshold-최적화)
    - [추가 개선 실험](#추가-개선-실험)
+   - [PoC 종합 분석](#poc-종합-분석)
 6. [개발 로드맵](#개발-로드맵)
 7. [라이센스](#라이센스)
 
@@ -31,7 +32,7 @@
 
 ## 프로젝트 개요
 
-KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 머신비전 프로젝트. 52장(결함) / 347장(정상)의 클래스 불균형 환경에서 데이터 중심 개선 → 모델 중심 개선 → 추가 실험을 통해 결함 탐지 성능을 점진적으로 향상시킴.
+KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 머신비전 프로젝트. 52장(결함) / 347장(정상)의 클래스 불균형 환경에서 데이터 파이프라인 개선, 전이학습, threshold 최적화, 하이퍼파라미터 탐색을 거쳐 PoC 종합 분석까지 수행.
 
 분류 성능 지표(F1, AUC)와 함께 비용 기반 평가를 병행. 미탐(FN)은 결함품 출하 시 리콜·보상·라인 중단 등 하류 리스크를, 오탐(FP)은 정상품 재검사·폐기 비용을 의미하며, FN이 FP보다 10배 높은 비용을 유발한다고 가정(FN=500만원/건, FP=50만원/건). 비용 수치는 실제값이 아닌 단순화한 가정.
 
@@ -100,16 +101,20 @@ kolektorsdd-classification/
 │   ├── threshold/
 │   │   ├── results.json                 # Threshold 최적화 실험 결과
 │   │   └── figures/                     # Threshold 최적화 시각화
-│   └── additional/
-│       ├── results.json                 # 추가 개선 실험 결과 (14종)
-│       └── figures/                     # 실험별 F1 비교 시각화
+│   ├── additional/
+│   │   ├── results.json                 # 추가 개선 실험 결과 (14종)
+│   │   └── figures/                     # 실험별 F1 비교 시각화
+│   └── poc/
+│       ├── results.json                 # PoC 종합 분석 결과
+│       └── figures/                     # 연간 절감액·비용 비교·GO/NO-GO 시각화
 ├── notebooks/
 │   ├── 01_eda.ipynb                     # 탐색적 데이터 분석 노트북
 │   ├── 02_baseline.ipynb                # 베이스라인 모델 노트북
 │   ├── 03_data_centric.ipynb            # 데이터 중심 개선 노트북
 │   ├── 04_model_centric.ipynb           # 모델 중심 개선 노트북
 │   ├── 05_threshold_analysis.ipynb      # Threshold 최적화 노트북
-│   └── 06_additional.ipynb              # 추가 개선 실험 노트북
+│   ├── 06_additional.ipynb              # 추가 개선 실험 노트북
+│   └── 07_poc_analysis.ipynb            # PoC 종합 분석 노트북
 ├── src/
 │   ├── data/                            # 데이터셋, 전처리, 증강, 샘플러
 │   ├── models/                          # 모델 정의 (CNN, EfficientNet-B0 전이학습)
@@ -375,19 +380,7 @@ FN/FP 비용은 산업 도메인 지식 없이 정확히 산정하기 어려움.
 
 fn_cost 배율 1× - 100× 구간 스윕 결과, **1×~10× 구간(현재 가정 포함)에서는 threshold 0.4736 유지**. 단, **fn_cost 20× 이상(FN이 FP보다 200배 이상 비쌀 경우)에서는 threshold 0.33으로 이동**하여 Recall=1.0(FN=0) 우선 방향으로 변화. 비용 가정이 현재(10:1)보다 극단적으로 높아지지 않는 한 권장 threshold 유효.
 
-
-#### PoC 비용 분석 (FN=500만원/건, FP=50만원/건 가정)
-
-각 개선 단계별 비용 기여도 누적 확인.
-
-| 모델 | FN | FP | 비용(만원) | Simple CNN 대비 | 전 단계 대비 |
-|---|---|---|---|---|---|
-| Simple CNN (thr=0.5) | 4 | 24 | 3,200 | - | - |
-| Simple CNN + 증강 (thr=0.5) | 2 | 37 | 2,850 | -11% | -11% |
-| EfficientNet-B0 + 증강 (thr=0.5) | 2 | 1 | 1,050 | -67% | **-63%** |
-| EfficientNet-B0 + 증강 (thr=0.4736) | 1 | 2 | 600 | **-81%** | **-43%** |
-
-![단계별 비용 비교](experiments/threshold/figures/cost_comparison.png)
+---
 
 ### 추가 개선 실험
 
@@ -430,7 +423,7 @@ EfficientNet-B0 + 증강 파이프라인을 기반으로 TTA, 추가 증강 기�
 - **lr=1e-4**는 학습 자체가 수렴하지 못해 탈락. 현재 lr=1e-3(기본값)가 이 데이터셋에 적합한 범위.
 - **ElasticTransform(p=0.15)·WeightedSampler 단독**은 test 기준 긍정적이나 val F1이 기준보다 소폭 낮아 dropout=0.3에는 미치지 못함.
 
-#### 최종 모델 성능 (dropout=0.3, threshold=0.5)
+#### 모델 성능 (dropout=0.3, threshold=0.5)
 
 | 분할 | F1 | AUC-ROC | Precision | Recall | FN | FP |
 |---|---|---|---|---|---|---|
@@ -438,6 +431,79 @@ EfficientNet-B0 + 증강 파이프라인을 기반으로 TTA, 추가 증강 기�
 | test | 0.8889 | 0.9938 | 0.8889 | 0.8889 | 1 | 1 |
 
 비교 기준 대비: test F1 +0.0654, test Recall +0.1111, FN 2건→1건(-50%), FP 1건→1건(동일).
+
+---
+
+
+### PoC 종합 분석
+
+추가 개선 실험 best 모델(EfficientNet-B0 + dropout=0.3)을 기반으로 비용 최소화 기준 threshold를 재도출하고, 추론 속도·연간 절감액·GO/NO-GO 판정을 포함한 PoC 종합 분석 수행.
+
+#### 최적 Threshold 재도출 및 민감도 분석
+
+비용 최소화(Cost Minimization) 방법으로 threshold 재도출. FN=500만원/건, FP=50만원/건 가정 유지.
+
+| 항목 | 값 |
+|---|---|
+| 최적 threshold | 0.27 |
+| F1 | 0.9000 |
+| Recall | 1.0000 |
+| Precision | 0.8182 |
+| FN | 0건 |
+| FP | 2건 |
+| 추정 비용 | 100만원 |
+
+FN 비용 배율 1× ~ 100× 구간 스윕. threshold 0.27, Recall=1.0(FN=0) 결과가 전 구간에서 유지됨.
+
+![민감도 분석](experiments/poc/figures/sensitivity_analysis.png)
+
+#### 결함 비용 추정 비교 (test set 기준)
+
+![단계별 비용 비교](experiments/poc/figures/stage_cost_comparison.png)
+
+| 모델 | Threshold | FN | FP | 결함 비용 추정(만원) | Simple CNN 대비 |
+|---|---|---|---|---|---|
+| Simple CNN | 0.5 | 4 | 24 | 3,200 | - |
+| Simple CNN + 증강 | 0.5 | 2 | 37 | 2,850 | -10.9% |
+| EfficientNet-B0 + 증강 | 0.5 | 2 | 1 | 1,050 | -67.2% |
+| EfficientNet-B0 + 증강 + threshold 조정 | 0.4736 | 1 | 2 | 600 | -81.3% |
+| EfficientNet-B0 + dropout=0.3 + threshold 재조정 (PoC 최종) | 0.27 | 0 | 2 | 100 | **-96.9%** |
+
+#### 연간 절감액 추정
+
+연간 생산량 10,000개 가정, test set 오류율 비례 추정. **실제 현장 수치로 대체 필요한 가정치**.
+
+> 수동 검사(검사원 인건비) 기반 비교는 검사원 오류율 데이터가 없으므로 수행하지 않았으며, 무검사 대비를 기준으로 설정하였음.
+
+![연간 절감액](experiments/poc/figures/annual_savings.png)
+
+| 항목 | 값 |
+|---|---|
+| 무검사 시 연간 결함 추정 비용 | 651,629만원 |
+| AI 검사 시 연간 결함 추정 비용 | 16,105만원 |
+| 연간 절감액 | **635,524만원** |
+| 절감률 | **97.5%** |
+
+#### 추론 속도 (Inference Speed)
+
+| 환경 | 평균 추론 시간 | FPS |
+|---|---|---|
+| CPU | 157.8 ms/image | 6.3 fps |
+| GPU | 13.29 ms/image | 75.3 fps |
+
+입력 크기: 3×256×256, 반복 100회 평균.
+
+#### GO/NO-GO 판정
+
+판정 기준값은 프로젝트 내 임의 설정값이며, 실제 도입 시 현장 요구사항으로 대체 필요.
+
+![GO/NO-GO](experiments/poc/figures/go_nogo_decision.png)
+
+**최종 판정: GO**
+
+#### 라이브 데모 미제공 안내
+
+KolektorSDD 데이터셋은 **CC BY-NC-SA 4.0** 라이센스 적용으로 연구·비상업적 목적 전용이며 재배포가 금지되어 있습니다. 이에 따라 데이터셋 이미지를 포함하는 외부 시연 데모는 제공하지 않습니다.
 
 ---
 
@@ -451,6 +517,7 @@ EfficientNet-B0 + 증강 파이프라인을 기반으로 TTA, 추가 증강 기�
 - [x] 모델 중심 개선 : EfficientNet-B0 전이학습, 2단계 파인튜닝 (test F1=0.8235, AUC=0.9568, AP=0.8898)
 - [x] Threshold 최적화 : 3가지 방법 수렴 (thr=0.4736), test F1=0.8421, 베이스라인 대비 총 비용 -81%
 - [x] 추가 개선 실험 : TTA·VerticalFlip·ElasticTransform·WeightedSampler·하이퍼파라미터 탐색 14종 수행, dropout=0.3 최적 (test F1=0.8889, AUC=0.9938)
+- [x] PoC 종합 분석 : threshold 재도출(0.27), FN=0·FP=2·비용 100만원, GPU 추론 13.3ms, 연간 절감 635,524만원(97.5%), GO 판정
 
 ---
 
