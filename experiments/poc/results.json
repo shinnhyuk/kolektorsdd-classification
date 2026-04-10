@@ -1,0 +1,145 @@
+{
+  "stage": "7",
+  "timestamp": "2026-04-10 21:08:51",
+  "model": {
+    "checkpoint": "experiments/additional/hp_dropout03/checkpoints/best_val_f1.pth",
+    "architecture": "EfficientNet-B0",
+    "dropout_rate": 0.3,
+    "total_parameters": 4008829,
+    "model_size_mb": 15.29
+  },
+  "threshold_optimization": {
+    "method": "cost_minimization",
+    "fn_cost": 10,
+    "fp_cost": 1,
+    "fn_cost_krw_man": 500,
+    "fp_cost_krw_man": 50,
+    "optimal_threshold": 0.27,
+    "stage5_threshold": 0.47357648611068726,
+    "note": "Stage 5에서 3방법 수렴 확인, Stage 7에서 cost_minimization 단일 방법으로 재도출"
+  },
+  "metrics": {
+    "f1": 0.9,
+    "recall": 1.0,
+    "precision": 0.818182,
+    "fn": 0,
+    "fp": 2,
+    "tn": 52,
+    "tp": 9,
+    "confusion_matrix": [
+      [
+        52,
+        2
+      ],
+      [
+        0,
+        9
+      ]
+    ],
+    "total_cost_krw_man": 100
+  },
+  "cost_analysis": {
+    "stage4_baseline_cost_man": 1050,
+    "stage7_cost_man": 100,
+    "cost_reduction_pct": 90.48
+  },
+  "inference_speed": {
+    "cpu_mean_ms": 157.762,
+    "cpu_std_ms": 19.207,
+    "cpu_fps": 6.3,
+    "gpu_mean_ms": 13.287,
+    "gpu_std_ms": 2.395,
+    "gpu_fps": 75.3,
+    "n_repeat": 100,
+    "input_size": "3x256x256"
+  },
+  "annual_savings": {
+    "annual_production_assumption": 10000,
+    "dataset_defect_rate": 0.1303,
+    "baseline": "no_inspection",
+    "no_ai_annual_cost_man": 651629.0,
+    "ai_annual_cost_man": 16105.0,
+    "annual_savings_man": 635524.0,
+    "annual_savings_pct": 97.53,
+    "note": "연간 생산량은 가정치. test set 오류율 비례 추정치. 실제 현장 수치로 대체 필요"
+  },
+  "sensitivity_analysis": {
+    "fn_cost_range": [
+      1,
+      2,
+      5,
+      10,
+      20,
+      50,
+      100
+    ],
+    "optimal_thresholds": [
+      0.27,
+      0.27,
+      0.27,
+      0.27,
+      0.27,
+      0.27,
+      0.27
+    ],
+    "f1_at_optimal": [
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      0.9,
+      0.9
+    ],
+    "recall_at_optimal": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "hardware": {
+    "recommended_gpu": "GTX 3060 (12 GB VRAM)",
+    "minimum_cpu": "G4560 or equivalent",
+    "total_parameters": 4008829,
+    "model_size_mb": 15.29
+  },
+  "go_no_go": {
+    "verdict": "GO",
+    "criteria": [
+      {
+        "항목": "검출 정확도 (Recall)",
+        "기준": "≥ 0.85",
+        "달성값": "1.0000",
+        "통과": true
+      },
+      {
+        "항목": "F1-score",
+        "기준": "≥ 0.80",
+        "달성값": "0.9000",
+        "통과": true
+      },
+      {
+        "항목": "비용 절감",
+        "기준": "무검사 대비 > 50%",
+        "달성값": "97.5%",
+        "통과": true
+      },
+      {
+        "항목": "추론 속도 (GPU)",
+        "기준": "≤ 100 ms/image",
+        "달성값": "13.29 ms",
+        "통과": true
+      },
+      {
+        "항목": "모델 메모리",
+        "기준": "≤ 100 MB",
+        "달성값": "15.29 MB",
+        "통과": true
+      }
+    ]
+  }
+}
