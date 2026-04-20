@@ -1,7 +1,7 @@
 # KolektorSDD 표면 결함 분류 (Surface Defect Classification)
 
-> KolektorSDD 산업용 표면 결함 데이터셋을 활용한 머신비전 이진 분류 프로젝트
-> 데이터 파이프라인 개선, 전이학습, threshold 최적화, 추가 실험, PoC 종합 분석까지 수행
+> KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 프로젝트
+> Data-Centric과 Model-Centric 접근의 기여도를 단계별로 격리·측정하여 점진적 개선 궤적 탐색 및 PoC 종합 분석 수행.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)](https://pytorch.org)
@@ -13,10 +13,11 @@
 ## 목차 (Table of Contents)
 
 1. [프로젝트 개요](#프로젝트-개요)
-2. [데이터셋](#데이터셋)
-3. [프로젝트 구조](#프로젝트-구조)
-4. [설치 및 실행](#설치-및-실행)
-5. [결과](#결과)
+2. [핵심 결과](#핵심-결과)
+3. [데이터셋](#데이터셋)
+4. [프로젝트 구조](#프로젝트-구조)
+5. [설치 및 실행](#설치-및-실행)
+6. [결과](#결과)
    - [탐색적 데이터 분석](#탐색적-데이터-분석)
    - [베이스라인 모델](#베이스라인-모델)
    - [데이터 중심 개선](#데이터-중심-개선)
@@ -24,8 +25,8 @@
    - [Threshold 최적화](#threshold-최적화)
    - [추가 개선 실험](#추가-개선-실험)
    - [PoC 종합 분석](#poc-종합-분석)
-6. [개발 로드맵](#개발-로드맵)
-7. [라이센스](#라이센스)
+7. [개발 로드맵](#개발-로드맵)
+8. [라이센스](#라이센스)
 
 ---
 
@@ -39,6 +40,38 @@ KolektorSDD 산업용 표면 결함 데이터셋 기반 이진 분류 머신비�
 모델 비교 및 threshold 최적화의 평가 기준으로 아래 Total Cost 사용.
 
 **Total Cost = FN × FN_Cost + FP × FP_Cost**
+
+---
+
+
+## 핵심 결과
+
+- F1 : 0.2632 → 0.9000
+- 추정 비용 3,200만원 → 100만원 (-96.9%)
+
+```mermaid
+flowchart LR
+    A["Baseline CNN\nF1 : 0.26\nCost : 3,200만원"]
+    B["+ Data Pipeline\nCLAHE · RandomBrightnessContrast\nF1 : 0.26\nCost : 2,850만원"]
+    C["+ 전이학습\nEfficientNet-B0\nF1 : 0.82\nCost : 1,050만원"]
+    D["+ Threshold 최적화\nCost Minimization (0.4736)\nF1 : 0.84\nCost : 600만원"]
+    E["최종 모델\ndropout=0.3 · threshold 재도출 (0.27)\nF1 : 0.90\nCost : 100만원"]
+
+    A -->|"모델 고정 / 데이터만 변경"| B
+    B -->|"데이터 고정 / 모델만 변경"| C
+    C -->|"모델·데이터 고정 / 의사결정 기준 변경"| D
+    D -->|"하이퍼파라미터 미세 조정"| E
+```
+
+| 접근 | F1 | AUC | Recall | 비용 추정(만원) |
+|---|---|---|---|---|
+| Baseline CNN | 0.2632 | 0.5535 | 0.5556 | 3,200 |
+| + Data Pipeline (CLAHE·RandomBrightnessContrast) | 0.2642 | 0.6008 | 0.7778 | 2,850 |
+| + 전이학습 (EfficientNet-B0) | 0.8235 | 0.9568 | 0.7778 | 1,050 |
+| + Threshold 최적화 (0.4736) | 0.8421 | 0.9568 | 0.8889 | 600 |
+| + Dropout 조정 + Threshold 재도출 (최종) | **0.9000** | **0.9938** | **1.0000** | **100** |
+
+데이터 파이프라인 개선은 AUC·Recall 일부 향상에 그쳤고(F1 +0.001), ImageNet 사전학습 모델로의 전환이 가장 큰 도약(F1 +0.56)을 만들었다. 이후 threshold 최적화와 dropout 조정으로 FN=0 달성. **최종 GO 판정**.
 
 ---
 
@@ -254,12 +287,12 @@ raw data의 폴더 파트 단위로 stratified split 수행. 동일 파트 이�
 
 ![샘플 이미지](experiments/data_centric/figures/sample_images.png)
 
+베이스라인에서 HorizontalFlip(p=0.5), BCEWithLogitsLoss + pos_weight(≈6.78)는 그대로 유지하고, 아래 기법을 새로 추가.
+
 | 기법 | 설정 | 목적 |
 |---|---|---|
 | CLAHE | clip_limit=2.0, p=0.5 | 금속 표면 국소 대비 강화 |
 | RandomBrightnessContrast | p=0.4 | 조명 변화 대응 |
-| HorizontalFlip | p=0.5 | 좌우 대칭 불변성 확보 |
-| BCEWithLogitsLoss + pos_weight | pos_weight≈6.78 | 클래스 불균형 보정 |
 
 
 
@@ -344,7 +377,7 @@ raw data의 폴더 파트 단위로 stratified split 수행. 동일 파트 이�
 
 ![Grad-CAM](experiments/model_centric/figures/gradcam.png)
 
-** FN 원인 **
+**FN 원인**
 
 - **FN #1 (contrast 부족):** 결함이 배경 텍스처와 대비가 낮아 육안으로도 모호한 수준. 모델의 관심도가 분산되어 결함 영역에 집중하지 못함.
 - **FN #2 (레터박스 경계 오반응):** 결함이 희미하게 존재하나, 레터박스 패딩 경계의 대비선이 결함보다 강한 신호로 작용하여 탐지 실패.
@@ -355,7 +388,7 @@ raw data의 폴더 파트 단위로 stratified split 수행. 동일 파트 이�
 
 ### Threshold 최적화
 
-EfficientNet-B0 기반 모델에 대해 FN/FP 비용 비대칭성을 반영한 threshold 최적화 수행, 전체 개선 과정의 PoC 분석 완료.
+EfficientNet-B0 기반 모델에 대해 FN/FP 비용 비대칭성을 반영한 threshold 최적화 수행.
 
 #### Threshold 최적화 결과 (test set 기준)
 
@@ -513,7 +546,7 @@ KolektorSDD 데이터셋은 **CC BY-NC-SA 4.0** 라이센스 적용으로 연구
 - [x] 프로젝트 초기 설정 : 디렉토리 구조, 설정 파일, 의존성 관리
 - [x] 탐색적 데이터 분석 : 클래스 분포 분석, 픽셀 통계 계산, 파트 단위 데이터 분할
 - [x] 베이스라인 모델 : Simple CNN 구현, 초기 성능 기준선 수립 및 실패 케이스 분석 (test F1=0.2632, AUC=0.5535)
-- [x] 데이터 중심 개선 : CLAHE/증강 강화, BCEWithLogitsLoss pos_weight 보정 (test F1=0.2642, AUC=0.6008, AP=0.3668)
+- [x] 데이터 중심 개선 : CLAHE·RandomBrightnessContrast 추가 (test F1=0.2642, AUC=0.6008, AP=0.3668)
 - [x] 모델 중심 개선 : EfficientNet-B0 전이학습, 2단계 파인튜닝 (test F1=0.8235, AUC=0.9568, AP=0.8898)
 - [x] Threshold 최적화 : 3가지 방법 수렴 (thr=0.4736), test F1=0.8421, 베이스라인 대비 총 비용 -81%
 - [x] 추가 개선 실험 : TTA·VerticalFlip·ElasticTransform·WeightedSampler·하이퍼파라미터 탐색 14종 수행, dropout=0.3 최적 (test F1=0.8889, AUC=0.9938)
